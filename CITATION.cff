@@ -1,0 +1,38 @@
+cff-version: 1.2.0
+message: "If you use kgrel in a paper, please cite it as below."
+title: "kgrel: reliability-aware dynamic ontology evolution for LLM-based knowledge-graph construction"
+authors:
+  - family-names: Mubarak
+    given-names: Amna
+    affiliation: "FAST-NUCES Karachi"
+    email: "amnamubarakk111@gmail.com"
+version: 0.1.0
+date-released: 2026-11-07
+repository-code: "https://github.com/AmnaMubarak/kgrel"
+license: MIT
+keywords:
+  - knowledge graph
+  - large language models
+  - hallucination detection
+  - ontology evolution
+  - information extraction
+  - text2kgbench
+abstract: >-
+  kgrel is a research toolkit for quantifying, predicting, explaining, and
+  controlling the reliability of LLM-generated knowledge triples before they
+  enter a knowledge graph, including the open-world case where the ontology
+  itself must evolve. It ships a reproducible pipeline over the
+  Text2KGBench (Wikidata-TekGen) benchmark with three risk signals
+  (source support, paraphrase instability, ontology novelty), a transparent
+  insert / abstain / propose-schema-update gate, and the frozen N=300
+  stratified sample used in the companion thesis.
+preferred-citation:
+  type: thesis
+  title: "Reliability-Aware Dynamic Ontology Evolution for Open-World LLM Knowledge Graph Construction"
+  authors:
+    - family-names: Mubarak
+      given-names: Amna
+  year: 2027
+  institution:
+    name: "National University of Computer and Emerging Sciences (FAST-NUCES), Karachi"
+  thesis-type: "M.S. Data Science Thesis"

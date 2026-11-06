@@ -1,0 +1,42 @@
+# --- Secrets ---
+.env
+.env.local
+*.key
+
+# --- Benchmark data (fetched on demand by scripts/01_fetch_data.py) ---
+data/raw/
+data/runs/
+data/results/
+
+# The frozen sample is checked in so experiments reproduce without the
+# full 1.4 GB benchmark download:
+!data/sample/
+!data/sample/*.jsonl
+
+# --- Python ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+build/
+dist/
+.venv/
+venv/
+env/
+pip-wheel-metadata/
+
+# --- IDE / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Local annotation artifacts (private per-researcher) ---
+annotation/pilot_annotator_*.csv
+annotation/kappa_report.json

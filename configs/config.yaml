@@ -1,0 +1,86 @@
+# kgrel — Reliability-Aware Dynamic Ontology Evolution.
+# Frozen research config. Edit sample sizes ONLY before you freeze the sample.
+
+seed: 20261022
+
+paths:
+  raw: data/raw
+  sample: data/sample
+  runs: data/runs
+  results: data/results
+
+benchmark:
+  name: text2kgbench
+  subset: wikidata_tekgen
+  # 10 Wikidata-TekGen ontologies; N=300 stratified across them (30 each).
+  # These globs match the actual on-disk layout after
+  # `python scripts/01_fetch_data.py` extracts tekgen.zip.
+  ontologies_glob: data/raw/text2kgbench/data/wikidata_tekgen/ontologies/*_ontology.json
+  tests_glob:      data/raw/text2kgbench/data/wikidata_tekgen/test/*_test.jsonl
+  ground_glob:     data/raw/text2kgbench/data/wikidata_tekgen/ground_truth/*_ground_truth.jsonl
+
+sample:
+  n_total: 300
+  stratify_by: ontology
+  openworld_holdout_frac: 0.20   # ~60 of 300 sentences hide the gold relation type
+  paraphrase_subset_n: 50
+  paraphrases_per_sentence: 3
+  samples_per_paraphrase: 3      # 3-5 recommended; start at 3
+
+models:
+  # All three run on Groq's free tier -> ONE key needed (GROQ_API_KEY).
+  # Three different model families (Meta / Google) + mixed sizes (70B vs ~8B)
+  # for the fairness design in the paper.
+  #
+  # If Groq deprecates / renames a model, check console.groq.com -> Models
+  # and update `api_model_id` only. Do NOT change `name` after the sample is
+  # frozen (names appear in results CSVs).
+  - name: llama-3.3-70b
+    backend: groq
+    api_model_id: llama-3.3-70b-versatile
+    temperature: 0.0
+    top_p: 1.0
+    max_tokens: 512
+  - name: llama-3.1-8b
+    backend: groq
+    api_model_id: llama-3.1-8b-instant
+    temperature: 0.0
+    top_p: 1.0
+    max_tokens: 512
+  - name: gemma2-9b
+    backend: groq
+    api_model_id: gemma2-9b-it
+    temperature: 0.0
+    top_p: 1.0
+    max_tokens: 512
+
+extraction:
+  prompt_template: text2kgbench_v1
+  json_strict: true
+  max_retries_on_parse_fail: 1
+
+canonical:
+  lower: true
+  strip_punct: true
+  collapse_whitespace: true
+  drop_articles: true           # "the", "a", "an"
+  fuzzy_threshold: 90           # rapidfuzz WRatio; above = treated as match
+
+error_taxonomy:
+  - id: T1
+    name: unsupported_hallucination
+  - id: T2
+    name: relational_distortion_or_ontology_violation
+  - id: T3
+    name: entity_error
+  - id: T4
+    name: missed_fact
+  - id: T5
+    name: format_or_serialization_error
+
+gate:
+  # Thresholds are set after the Phase 2 pilot. These are placeholders.
+  support_min: 0.5              # source-support signal in [0,1]
+  stability_min: 0.5            # paraphrase-stability signal in [0,1]
+  novelty_merge_fuzzy: 92       # synonym merge of a proposed new relation
+  propose_schema_min_support: 0.75
