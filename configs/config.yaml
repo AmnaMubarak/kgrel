@@ -29,30 +29,38 @@ sample:
 
 models:
   # All three run on Groq's free tier -> ONE key needed (GROQ_API_KEY).
-  # Three different model families (Meta / Google) + mixed sizes (70B vs ~8B)
-  # for the fairness design in the paper.
+  # Two model families (OpenAI OSS, Alibaba Qwen) across three sizes
+  # (120B / 27B / 20B) for the fairness design in the paper.
+  #
+  # Note: previous versions of this config used Llama-3.3-70B, Llama-3.1-8B,
+  # and Gemma2-9B; those were decommissioned from Groq's free tier in 2026.
+  # Current line-up reflects what's live on Groq as of Nov 2026.
   #
   # If Groq deprecates / renames a model, check console.groq.com -> Models
   # and update `api_model_id` only. Do NOT change `name` after the sample is
   # frozen (names appear in results CSVs).
-  - name: llama-3.3-70b
+  # Note on max_tokens: gpt-oss-* are OpenAI "reasoning" models that spend a
+  # few hundred tokens on an internal chain-of-thought before emitting content.
+  # We allocate 2048 to leave comfortable headroom; actual triple JSON is
+  # usually <200 tokens.
+  - name: gpt-oss-120b
     backend: groq
-    api_model_id: llama-3.3-70b-versatile
+    api_model_id: openai/gpt-oss-120b
     temperature: 0.0
     top_p: 1.0
-    max_tokens: 512
-  - name: llama-3.1-8b
+    max_tokens: 2048
+  - name: qwen3-27b
     backend: groq
-    api_model_id: llama-3.1-8b-instant
+    api_model_id: qwen/qwen3.8-27b
     temperature: 0.0
     top_p: 1.0
-    max_tokens: 512
-  - name: gemma2-9b
+    max_tokens: 2048
+  - name: gpt-oss-20b
     backend: groq
-    api_model_id: gemma2-9b-it
+    api_model_id: openai/gpt-oss-20b
     temperature: 0.0
     top_p: 1.0
-    max_tokens: 512
+    max_tokens: 2048
 
 extraction:
   prompt_template: text2kgbench_v1

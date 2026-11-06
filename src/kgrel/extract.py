@@ -85,10 +85,14 @@ class GroqClient(BaseClient):
         if not api_key:
             raise RuntimeError("GROQ_API_KEY not set.")
         self._client = Groq(api_key=api_key)
-        # Gemma does not accept the json_object response_format on Groq;
-        # we fall back to a strong prompt-level instruction (already in SYSTEM).
+        # Some models on Groq do not accept the strict `response_format=json_object`
+        # and will return empty content with a validation error. For those we fall
+        # back to a strong prompt-level JSON instruction (already in SYSTEM).
+        #   - gemma*            : documented limitation
+        #   - gpt-oss-20b       : small OSS variant chokes on the schema at low temps
         name = (spec.api_model_id or spec.name).lower()
-        self._supports_json_mode = not name.startswith("gemma")
+        _no_json_mode = ("gemma", "gpt-oss-20b")
+        self._supports_json_mode = not any(tok in name for tok in _no_json_mode)
 
     def call(self, messages: List[Dict[str, str]]) -> str:
         kwargs: Dict[str, Any] = dict(

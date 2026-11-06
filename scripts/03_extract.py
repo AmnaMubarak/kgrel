@@ -21,6 +21,13 @@ HERE = Path(__file__).resolve()
 IMPL = HERE.parents[1]
 sys.path.insert(0, str(IMPL / "src"))
 
+# Load .env so GROQ_API_KEY is picked up automatically.
+try:
+    from dotenv import load_dotenv
+    load_dotenv(IMPL / ".env")
+except ImportError:
+    pass
+
 from kgrel.dataset import load_ontologies           # noqa: E402
 from kgrel.extract import ModelSpec, extract_one, make_client  # noqa: E402
 from kgrel.schema import GoldItem, Triple, dumps_dc  # noqa: E402

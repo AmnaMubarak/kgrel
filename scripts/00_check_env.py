@@ -25,6 +25,13 @@ HERE = Path(__file__).resolve()
 IMPL = HERE.parents[1]
 sys.path.insert(0, str(IMPL / "src"))
 
+# Load .env so GROQ_API_KEY is available without manual export.
+try:
+    from dotenv import load_dotenv
+    load_dotenv(IMPL / ".env")
+except ImportError:
+    pass  # dotenv is optional; env vars can still be set manually
+
 from kgrel.extract import ModelSpec, make_client   # noqa: E402
 from kgrel.parse import parse_triples              # noqa: E402
 
