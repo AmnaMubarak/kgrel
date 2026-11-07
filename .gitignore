@@ -40,3 +40,6 @@ Thumbs.db
 # --- Local annotation artifacts (private per-researcher) ---
 annotation/pilot_annotator_*.csv
 annotation/kappa_report.json
+data/annotation/*_annotator_*.csv
+data/annotation/*_kappa_report.json
+data/annotation/*_HOW_TO_ANNOTATE.md
