@@ -39,7 +39,7 @@ try:
 except ImportError:
     pass
 
-from kgrel.dataset import load_ontologies                      # noqa: E402
+from kgrel.dataset import load_or_synthesize_ontologies        # noqa: E402
 from kgrel.extract import ModelSpec, extract_one, make_client  # noqa: E402
 from kgrel.gate import GateInput, GateThresholds, decide        # noqa: E402
 from kgrel.match import match_sentence                          # noqa: E402
@@ -108,7 +108,20 @@ def main() -> int:
           f"(open-world={sum(1 for s in pilot if s.openworld_held_out)})  "
           f"models={[m['name'] for m in model_cfgs]}")
 
-    ontologies = load_ontologies(str(IMPL / cfg["benchmark"]["ontologies_glob"]))
+    ontologies = load_or_synthesize_ontologies(
+        str(IMPL / cfg["benchmark"]["ontologies_glob"]),
+        fallback_items=full,
+    )
+    if not ontologies:
+        print("[pilot] FATAL: no ontologies available (disk empty AND frozen "
+              "sample has no gold relations). Nothing to run.")
+        return 3
+    missing_oids = sorted({s.ontology_id for s in pilot
+                           if s.ontology_id not in ontologies})
+    if missing_oids:
+        print(f"[pilot] WARNING: {len(missing_oids)} pilot sentences reference "
+              f"ontology ids not in the schema: {missing_oids[:5]}...")
+
     runs_dir = IMPL / cfg["paths"]["runs"]
     results_dir = IMPL / cfg["paths"]["results"]
     runs_dir.mkdir(parents=True, exist_ok=True)
@@ -140,12 +153,14 @@ def main() -> int:
         preds = []
         matches = []
         n_format_fail = 0
+        n_skipped = 0
         total_latency = 0.0
 
         with out_path.open("w", encoding="utf-8") as fh:
             for item in tqdm(pilot, desc=spec.name):
                 ont = ontologies.get(item.ontology_id)
                 if ont is None:
+                    n_skipped += 1
                     continue
                 pred = extract_one(client, item, ont, run_id=args.run_id)
                 preds.append(pred)
@@ -186,11 +201,18 @@ def main() -> int:
         per_model_summary[spec.name] = {
             "n_sentences": len(preds),
             "n_triples": n_triples,
+            "n_skipped_missing_ontology": n_skipped,
             "parser_recovery": round(1 - n_format_fail / max(1, len(preds)), 3),
             "n_format_fail": n_format_fail,
             "avg_latency_s": round(total_latency / max(1, len(preds)), 2),
             "prf1_canonical": {"P": round(p, 3), "R": round(r, 3), "F1": round(f, 3)},
         }
+        if n_skipped:
+            print(f"[{spec.name}] WARNING: {n_skipped}/{len(pilot)} sentences "
+                  "were skipped because their ontology_id was missing.")
+        if len(preds) == 0:
+            print(f"[{spec.name}] FATAL: 0 sentences processed. The API was "
+                  "never called. Check ontology loading and GROQ_API_KEY.")
 
     # per-triple CSV (one row per emitted triple, across all pilot models)
     csv_path = results_dir / f"{args.run_id}_per_triple.csv"

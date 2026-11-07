@@ -18,7 +18,7 @@ from __future__ import annotations
 import glob
 import json
 import os
-from typing import Dict, Iterator, List, Optional
+from typing import Any, Dict, Iterable, Iterator, List, Optional
 
 from .schema import GoldItem, Ontology, Triple
 
@@ -119,3 +119,64 @@ def load_all(ontologies_glob: str, tests_glob: str, ground_glob: str
         "ontologies": load_ontologies(ontologies_glob),
         "items": list(load_gold_items(tests_glob, ground_glob)),
     }
+
+
+def synthesize_ontologies_from_sample(items: Iterable[GoldItem]
+                                      ) -> Dict[str, Ontology]:
+    """Build minimal Ontology objects by aggregating gold relations per
+    ontology_id in the frozen sample.
+
+    Used as a fallback when the raw Text2KGBench ontology JSONs are not on
+    disk (e.g. a fresh clone of the public repo that only ships the frozen
+    sample). This honours the README promise that experiments reproduce
+    without the 1.4 GB benchmark download.
+
+    Notes:
+      * Only `relation_types` is populated. The `ontology_novelty` signal is
+        the only consumer; entity_types are not needed by current scoring.
+      * Per-sentence open-world hold-out is applied at the prompt/sample
+        layer, not here. This synthesizer always returns the UNION of seen
+        relations for each ontology, mirroring how `load_ontologies` would
+        behave on real benchmark files.
+    """
+    buckets: Dict[str, set] = {}
+    for item in items:
+        bucket = buckets.setdefault(item.ontology_id, set())
+        for t in item.triples:
+            rel = (t.relation or "").strip()
+            if rel:
+                bucket.add(rel)
+    return {
+        oid: Ontology(
+            id=oid,
+            label=oid,
+            description="(synthesized from frozen sample gold triples)",
+            entity_types=[],
+            relation_types=sorted(rels),
+        )
+        for oid, rels in buckets.items()
+    }
+
+
+def load_or_synthesize_ontologies(ontologies_glob: str,
+                                  fallback_items: Iterable[GoldItem]
+                                  ) -> Dict[str, Ontology]:
+    """Try `load_ontologies(glob)`; if empty, synthesize from the sample.
+
+    Returns a (possibly empty) dict and prints one line telling the caller
+    which path was taken so nothing is silent.
+    """
+    ontologies = load_ontologies(ontologies_glob)
+    if ontologies:
+        print(f"[dataset] loaded {len(ontologies)} ontologies from disk "
+              f"({ontologies_glob})")
+        return ontologies
+    # Fallback: synthesize from the frozen sample's gold triples.
+    items_list = list(fallback_items)
+    ontologies = synthesize_ontologies_from_sample(items_list)
+    print(f"[dataset] no raw ontology files matched {ontologies_glob} — "
+          f"synthesized {len(ontologies)} ontologies from the frozen sample "
+          f"({sum(len(o.relation_types) for o in ontologies.values())} "
+          f"relations total). Run scripts/01_fetch_data.py to use the "
+          f"authoritative Text2KGBench schema instead.")
+    return ontologies

@@ -28,7 +28,7 @@ try:
 except ImportError:
     pass
 
-from kgrel.dataset import load_ontologies           # noqa: E402
+from kgrel.dataset import load_or_synthesize_ontologies  # noqa: E402
 from kgrel.extract import ModelSpec, extract_one, make_client  # noqa: E402
 from kgrel.schema import GoldItem, Triple, dumps_dc  # noqa: E402
 
@@ -69,11 +69,18 @@ def main() -> int:
         print(f"[extract] no models matched {args.models}")
         return 2
 
-    ontologies = load_ontologies(str(IMPL / cfg["benchmark"]["ontologies_glob"]))
     sample = list(load_sample(IMPL / cfg["paths"]["sample"] / "sample.jsonl"))
     if args.limit:
         sample = sample[: args.limit]
     print(f"[extract] sample={len(sample)} models={[m['name'] for m in model_cfgs]}")
+
+    ontologies = load_or_synthesize_ontologies(
+        str(IMPL / cfg["benchmark"]["ontologies_glob"]),
+        fallback_items=sample,
+    )
+    if not ontologies:
+        print("[extract] FATAL: no ontologies available. Nothing to run.")
+        return 3
 
     runs_dir = IMPL / cfg["paths"]["runs"]
     runs_dir.mkdir(parents=True, exist_ok=True)
@@ -92,13 +99,18 @@ def main() -> int:
         out_path = out_dir / f"{args.run_id}.jsonl"
         print(f"[extract] -> {out_path}")
 
+        n_done = 0
+        n_skipped = 0
         with out_path.open("w", encoding="utf-8") as fh:
             for item in tqdm(sample, desc=spec.name):
                 ont = ontologies.get(item.ontology_id)
                 if ont is None:
+                    n_skipped += 1
                     continue
                 pred = extract_one(client, item, ont, run_id=args.run_id)
                 fh.write(json.dumps(dumps_dc(pred), ensure_ascii=False) + "\n")
+                n_done += 1
+        print(f"[extract]   {spec.name}: {n_done} done, {n_skipped} skipped")
 
     print("[extract] done")
     return 0
