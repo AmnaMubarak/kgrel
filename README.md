@@ -12,7 +12,7 @@
 
 The frozen stratified sample (**N = 300 sentences across 10 Wikidata-TekGen ontologies**, 20 % open-world hold-out, 50-sentence paraphrase sub-study) is checked in, so the headline experiments are **bit-exact reproducible without any benchmark download**.
 
-All three evaluated models — `llama-3.3-70b-versatile`, `llama-3.1-8b-instant`, `gemma2-9b-it` — run on [Groq's free tier](https://console.groq.com/keys): **one API key, no credit card**.
+All three evaluated models — `openai/gpt-oss-120b`, `qwen/qwen3.8-27b`, `openai/gpt-oss-20b` — run on [Groq's free tier](https://console.groq.com/keys): **one API key, no credit card**. (The model line-up evolved during the project — earlier versions used Llama-3.3-70B / Llama-3.1-8B / Gemma2-9B, which were decommissioned from Groq's free tier in 2026.)
 
 ---
 
@@ -41,6 +41,11 @@ python scripts/10_pilot.py
 # 6) Full N=300 run on all three models
 python scripts/03_extract.py --run-id core --models all
 python scripts/04_score.py   --run-id core
+
+# 7) (optional) After editing gate thresholds, the ontology layer, or a
+#     signal implementation, rescore CACHED predictions without burning
+#     any API quota:
+python scripts/13_rescore.py --run-id pilot
 ```
 
 The frozen sample is already at `data/sample/sample.jsonl`. You only need the raw benchmark if you want to **re-generate** the sample or run on sentences outside the frozen set:
