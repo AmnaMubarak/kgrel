@@ -5,6 +5,7 @@ Wraps scripts/99_pilot_smoke.py so `pytest -q` catches regressions in CI.
 """
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -23,10 +24,11 @@ def test_pilot_smoke_runs() -> None:
     """Runs scripts/99_pilot_smoke.py as a subprocess; last line must be [smoke] OK."""
     script = REPO / "scripts" / "99_pilot_smoke.py"
     assert script.exists(), f"missing {script}"
-    env = {
-        "PYTHONPATH": str(REPO / "src"),
-        "PATH": __import__("os").environ.get("PATH", ""),
-    }
+    # Inherit the parent env (Windows needs SYSTEMROOT etc. to initialise
+    # Python's random pool) and override PYTHONPATH so the test picks up
+    # the source tree without requiring `pip install -e .`.
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(REPO / "src")
     result = subprocess.run(
         [sys.executable, str(script)],
         capture_output=True,

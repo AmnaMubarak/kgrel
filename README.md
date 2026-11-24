@@ -1,18 +1,44 @@
 # kgrel — Reliability-Aware Dynamic Ontology Evolution for LLM-Based Knowledge-Graph Construction
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.8+](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](pyproject.toml)
+[![CI](https://github.com/AmnaMubarak/kgrel/actions/workflows/ci.yml/badge.svg)](https://github.com/AmnaMubarak/kgrel/actions/workflows/ci.yml)
+[![Status: active research](https://img.shields.io/badge/status-active_research-brightgreen.svg)](#status)
+[![Last commit](https://img.shields.io/github/last-commit/AmnaMubarak/kgrel)](https://github.com/AmnaMubarak/kgrel/commits/main)
+[![Benchmark: Text2KGBench](https://img.shields.io/badge/benchmark-Text2KGBench-blueviolet)](https://github.com/cenguix/Text2KGBench)
+[![Runs on: Groq free tier](https://img.shields.io/badge/runs_on-Groq_free_tier-orange)](https://console.groq.com/keys)
+
 > *Can we predict, quantify, explain, and control the reliability of LLM-generated knowledge **before** it enters a KG, including when the ontology itself must evolve?*
 
-**kgrel** is the research code behind an M.S. thesis on reliability for open-world knowledge-graph construction with large language models. It is a lightweight, reproducible pipeline that:
+**kgrel** is the research code behind an M.S. thesis on reliability for open-world knowledge-graph construction with large language models. It is a lightweight, reproducible pipeline that
 
 1. loads the [Text2KGBench](https://github.com/cenguix/Text2KGBench) Wikidata-TekGen benchmark,
-2. prompts an LLM to extract (subject, relation, object) triples from a sentence,
+2. prompts an LLM to extract *(subject, relation, object)* triples from a sentence,
 3. computes three per-triple **risk signals** — *source support*, *paraphrase instability*, *ontology novelty* —
 4. runs a transparent **gate** that outputs one of three decisions: `insert` / `abstain` / `propose_schema_update`,
 5. scores the result against gold under both strict and canonicalized matching, broken down by an explicit five-type **error taxonomy** (T1 unsupported hallucination, T2 relational distortion, T3 entity error, T4 missed fact, T5 format/serialization error).
 
+```mermaid
+flowchart LR
+    S[("Sentence + Ontology")] --> L["LLM extract"]
+    L --> P["Parse + canonicalize"]
+    P --> SG["source_support<br/>paraphrase_instability<br/>ontology_novelty"]
+    SG --> G{"Gate"}
+    G -- "insert" --> KG[(Knowledge Graph)]
+    G -- "abstain" --> X["drop + log"]
+    G -- "propose_schema_update" --> Q["schema-review queue"]
+    classDef sig fill:#eef5ff,stroke:#5a7bd6,color:#333;
+    classDef gate fill:#fff4d6,stroke:#c08b00,color:#333;
+    class SG sig
+    class G gate
+```
+
 The frozen stratified sample (**N = 300 sentences across 10 Wikidata-TekGen ontologies**, 20 % open-world hold-out, 50-sentence paraphrase sub-study) is checked in, so the headline experiments are **bit-exact reproducible without any benchmark download**.
 
-All three evaluated models — `openai/gpt-oss-120b`, `qwen/qwen3.8-27b`, `openai/gpt-oss-20b` — run on [Groq's free tier](https://console.groq.com/keys): **one API key, no credit card**. (The model line-up evolved during the project — earlier versions used Llama-3.3-70B / Llama-3.1-8B / Gemma2-9B, which were decommissioned from Groq's free tier in 2026.)
+All three evaluated models — `openai/gpt-oss-120b`, `qwen/qwen3.8-27b`, `openai/gpt-oss-20b` — run on [Groq's free tier](https://console.groq.com/keys): **one API key, no credit card**. See [About the model line-up](#about-the-model-line-up) at the bottom for why these three.
+
+<a id="status"></a>
+> **Status (Nov 2026).** Phase 2a pilot passed (parser recovery 100 % / 95 % on qwen3-27b / gpt-oss-20b). N=300 run and inter-annotator κ in progress.
 
 ---
 
@@ -135,7 +161,7 @@ Content labels T1–T3 are annotated by two humans on a 30-triples-per-model ove
 pip install -e .
 cp .env.example .env            # add GROQ_API_KEY
 python scripts/00_check_env.py
-python scripts/03_extract.py --run-id paper --models all --sample data/sample/sample.jsonl
+python scripts/03_extract.py --run-id paper --models all
 python scripts/04_score.py   --run-id paper
 ```
 
@@ -186,3 +212,15 @@ The included Text2KGBench frozen sample is derived from [cenguix/Text2KGBench](h
 ## Acknowledgments
 
 Thesis supervised by **Dr. Zulfiqar Memon** (FAST-NUCES Karachi). Builds on top of [Text2KGBench](https://arxiv.org/abs/2308.02357) (Mihindukulasooriya et al., ISWC 2023) and the risk-signal / error-taxonomy lines of work in [GenRES](https://arxiv.org/abs/2402.10744), [KGHaluBench](https://arxiv.org/abs/2502.13593), [GraphJudge](https://arxiv.org/abs/2411.17388), and [GraphRefine](https://arxiv.org/abs/2509.16531).
+
+---
+
+<a id="about-the-model-line-up"></a>
+<details>
+<summary><strong>About the model line-up</strong> — why these three, what changed</summary>
+
+Earlier versions of this config used `llama-3.3-70b-versatile`, `llama-3.1-8b-instant`, and `gemma2-9b-it`. All three were decommissioned from Groq's free tier during 2026. The current line-up — `openai/gpt-oss-120b`, `qwen/qwen3.8-27b`, `openai/gpt-oss-20b` — was chosen to keep two model families (OpenAI OSS, Alibaba Qwen) across three capacity tiers (120B / 27B / 20B) so the thesis can still compare scale-within-family and family-within-scale. All three are documented live on Groq's free tier as of this commit; if any is decommissioned, replace only the `api_model_id` in `configs/config.yaml` and leave the `name` fields alone (they appear in results CSVs).
+
+The `gpt-oss-*` family are "reasoning" models that spend a few hundred tokens on an internal chain-of-thought before emitting content, so `max_tokens` is set to 2048 (headroom); actual triple JSON is usually under 200 tokens. `gpt-oss-20b` and `gemma*` do not accept Groq's strict `response_format=json_object` and fall back to a strong prompt-level JSON instruction (see `src/kgrel/extract.py::GroqClient`).
+
+</details>
